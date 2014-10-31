@@ -19,10 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\include\CvAuxFuncs.h" />
     <ClInclude Include="..\include\Munkres.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\src\Munkres.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{F07899FB-59C8-4D2C-BF24-3EE6EF037A99}</ProjectGuid>

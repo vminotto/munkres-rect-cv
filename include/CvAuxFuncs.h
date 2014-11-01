@@ -14,8 +14,8 @@ template <class T> cv::Mat_<T> getCloneL(const cv::Mat_<T> src,
 	if (src.empty() || _rowLogicInds.empty() || _colLogicInds.empty())
 		return src.clone();
 
-	int nRows = cv::countNonZero(_rowLogicInds);
-	int nCols = cv::countNonZero(_colLogicInds);
+	size_t nRows = cv::countNonZero(_rowLogicInds);
+	size_t nCols = cv::countNonZero(_colLogicInds);
 
 	std::vector<unsigned char> rowLogicInds, colLogicInds;
 	_rowLogicInds.getMat().convertTo(rowLogicInds, cv::DataType<unsigned char>::type);
@@ -60,8 +60,8 @@ template <class T> cv::Mat_<T> getCloneI(const cv::Mat_<T> src,
 	_rowInds.getMat().convertTo(rowInds, cv::DataType<int>::type);
 	_colInds.getMat().convertTo(colInds, cv::DataType<int>::type);
 
-	int nRows = rowInds.size();
-	int nCols = colInds.size();
+	size_t nRows = rowInds.size();
+	size_t nCols = colInds.size();
 
 	auto minMax = std::minmax_element(rowInds.begin(), rowInds.end());
 	if (*minMax.first < 0 || *minMax.second >= src.rows)
@@ -128,8 +128,8 @@ template <class T> void assignL(const cv::Mat_<T> &src, cv::Mat_<T> &dst,
 	if (src.empty() || _rowLogicInds.empty() || _colLogicInds.empty())
 		return;
 
-	int nRows = cv::countNonZero(_rowLogicInds);
-	int nCols = cv::countNonZero(_colLogicInds);
+	size_t nRows = cv::countNonZero(_rowLogicInds);
+	size_t nCols = cv::countNonZero(_colLogicInds);
 
 	if (!nCols || !nRows)
 		return;
@@ -205,8 +205,8 @@ template <class T> void assignI(const cv::Mat_<T> &src, cv::Mat_<T> &dst,
 	_rowInds.getMat().convertTo(rowInds, cv::DataType<int>::type);
 	_colInds.getMat().convertTo(colInds, cv::DataType<int>::type);
 
-	int nRows = rowInds.size();
-	int nCols = colInds.size();
+	size_t nRows = rowInds.size();
+	size_t nCols = colInds.size();
 
 	auto minMax = std::minmax_element(rowInds.begin(), rowInds.end());
 	if (*minMax.first < 0|| *minMax.second >= dst.rows)

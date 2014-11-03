@@ -1,6 +1,7 @@
 #include "Munkres.h"
 #include <cmath>
 #include <random>
+#include <fstream>
 
 using namespace std;
 
@@ -28,7 +29,7 @@ int main(){
 	mat(2, 0) = 3;		mat(2, 1) = 2;		mat(2, 2) = 3;		mat(2, 3) = 4;
 	mat(3, 0) = 5;		mat(3, 1) = 2.22;	mat(3, 2) = inf;	mat(3, 3) = inf;
 	mat(4, 0) = 2.9;	mat(4, 1) = 3.12;	mat(4, 2) = 5.5;	mat(4, 3) = 2.3;
-	testMunkres(mun, mat);
+	//testMunkres(mun, mat);
 	
 	/*Testing with a rectangular overcomplete assignment, with random data.*/
 	std::random_device rDev;
@@ -37,10 +38,16 @@ int main(){
 	rng.fill(mat, cv::RNG::UNIFORM, 0.0, std::nextafter(1.0, 1));
 	testMunkres(mun, mat);
 
+	std::vector<double> vec;
+	std::ifstream file("C:/Dropbox/Softwares/CPlusPlus/GitHub/munkres-hungarian/munkres/longmat.txt");
+	std::copy(std::istream_iterator<double>(file), std::istream_iterator<double>(), std::back_inserter(vec));
+	cv::Mat_<double> longMat(vec, true);
+	longMat = longMat.reshape(270);
+
 	/*Testing a large square assignemtn, with random data.*/
-	mat.create(400, 400);
-	rng.fill(mat, cv::RNG::UNIFORM, 0.0, std::nextafter(1.0, 1));
-	testMunkres(mun, mat, true);
+	//mat.create(270, 270);
+	//rng.fill(mat, cv::RNG::UNIFORM, 0.0, std::nextafter(1.0, 1));
+	testMunkres(mun, longMat, true);
 
 	std::cin.get();
 	return 0;

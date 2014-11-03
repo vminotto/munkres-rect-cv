@@ -12,7 +12,7 @@ template <class T> cv::Mat_<T> getCloneL(const cv::Mat_<T> src,
 	CV_Assert(src.dims <= 2);
 
 	if (src.empty() || _rowLogicInds.empty() || _colLogicInds.empty())
-		return src.clone();
+		return cv::Mat_<T>();
 
 	size_t nRows = cv::countNonZero(_rowLogicInds);
 	size_t nCols = cv::countNonZero(_colLogicInds);
@@ -54,7 +54,7 @@ template <class T> cv::Mat_<T> getCloneI(const cv::Mat_<T> src,
 	CV_Assert(src.dims <= 2);
 
 	if (src.empty() || _rowInds.empty() || _colInds.empty())
-		return src.clone();
+		return cv::Mat_<T>();
 
 	std::vector<int> rowInds, colInds;
 	_rowInds.getMat().convertTo(rowInds, cv::DataType<int>::type);
@@ -225,6 +225,7 @@ template <class T> void assignI(const cv::Mat_<T> &src, cv::Mat_<T> &dst,
 			dst(rowInds[r], colInds[c]) = src(r, c);
 		}
 	}
+	int aaa = cv::countNonZero(dst);
 }
 
 std::vector<int> getNonZeroInds(cv::InputArray in){
@@ -247,6 +248,8 @@ std::vector<int> getNonZeroInds(cv::InputArray in){
 	return inds;
 }
 
+
+//optmize this to avoid duplicating the input. do the same for other functions.
 void getNonZeroInds(cv::InputArray in, std::vector<int> &rowInds, std::vector<int> &colInds){
 
 	if (in.empty())
@@ -273,11 +276,13 @@ void getNonZeroInds(cv::InputArray in, std::vector<int> &rowInds, std::vector<in
 }
 
 /*Finds the first element in src that compares equal to 'val' and store its
-position on 'pos'. The return indicates whether or not the element was found.*/
+position on 'pos'. The return indicates whether or not the element was found.
+This method iterates through the vertical dimension first, corresponding to
+a call to the matlab function '[r c] = find(src, 1)'*/
 template <class T> bool findFirst(cv::Mat_<T> &src, T val, cv::Point2i &pos){
 	bool found = false;
-	for (int r = 0; r < src.rows && !found; ++r){
-		for (int c = 0; c < src.cols && !found; ++c){
+	for (int c = 0; c < src.cols && !found; ++c){
+		for (int r = 0; r < src.rows && !found; ++r){
 			if (src(r, c) == val){
 				found = true;
 				pos.x = c;

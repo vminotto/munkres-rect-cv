@@ -64,8 +64,18 @@ template <class T, class I = int> cv::Mat_<T> getCloneI(const cv::Mat_<T> &src,
 
 	CV_Assert(src.dims <= 2);
 
-	if (src.empty() || _rowInds.empty() || _colInds.empty())
+	if (src.empty()){
+		cout << " src empty" << endl;
 		return cv::Mat_<T>();
+	}
+	if (_colInds.empty()){
+		cout << " _colInds empty" << endl;
+		return cv::Mat_<T>();
+	}
+	if (_rowInds.empty()){
+		cout << " _rowInds empty" << endl;
+		return cv::Mat_<T>();
+	}	
 
 	size_t nRows = _rowInds.total();
 	size_t nCols = _colInds.total();
@@ -255,19 +265,19 @@ template <class T, class I = int> void assignI(const cv::Mat_<T> &src, cv::Mat_<
 
 }
 
-template <class T, class I = int> std::vector<I> getIndsOfNonZeros1D(cv::Mat_<T> &in, bool negateInput = false){
+template <class T, class I = int> cv::Mat_<I> getIndsOfNonZeros1D(cv::Mat_<T> &in, bool negateInput = false){
 	
 	static_assert(std::is_integral<I>::value, "Second template parameter on 'getIndsOfNonZeros1D(...)' must be an integral primitive type.");
 
 
 	if (in.empty())
-		return std::vector<I>();
+		return cv::Mat_<I>();
 
 	if (in.rows > 1 && in.cols > 1){
 		CV_Error(CV_StsVecLengthErr, std::string("Input array must be one-dimensional."));
 	}
 	
-	std::vector<I> inds;
+	cv::Mat_<I> inds;
 
 	for (int i = 0; i < in.total(); ++i){
 		if (bool(in(i)) != negateInput)

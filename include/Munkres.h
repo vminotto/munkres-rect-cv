@@ -13,8 +13,8 @@ public:
 	static_assert(std::is_floating_point<T>::value, "The Munkres algorithm implemented in 'Munkres.h' only accepts floating point data.");
 	using uint8_t = std::uint8_t;
 
-	Munkres(){}
-	~Munkres(){}	
+	Munkres() = default;
+	~Munkres() = default;
 
 	/*Performs the Munkres Algorithm.
 	Input: MxN matrix representing the costs of the assignment problem. Data must 
@@ -38,14 +38,17 @@ public:
 	}
 
 	/*Gets the resulting assignment matrix of the last call to the algorithm.*/
-	cv::Mat_<int> getAssignmentMatrix(){ return assignment; }
+	cv::Mat_<int> getAssignment(){ return assignment; }
 	/*Gest the total assignment cost of the last found solution.*/
-	T getAssignmentCost(){	return cost; }
+	T getCost(){ return cost; }
+	/*Gets the individual cost of each index in the 'assignment' vector.*/
+	std::vector<T> &getIndividualCosts(){ return individualCosts; }
 
 private:
 
 	/*Output results of the algorithm*/
 	cv::Mat_<int> assignment;
+	std::vector<T> individualCosts;
 	T cost = -1;
 
 	/*Auxiliary variables used for running the algorihtm. They are declared
@@ -159,12 +162,12 @@ template <class T> void Munkres<T>::step4(){
 
 	while (!done){
 
-		std::vector<int> cC, cR;
+		cv::Mat_<int> cC, cR;
 		cR = getIndsOfNonZeros1D(coverRow, true);
 		cC = getIndsOfNonZeros1D(coverCol, true);
 
-		rIdx = getCloneI(cv::Mat_<int>(cR, false), rIdx, 0);
-		cIdx = getCloneI(cv::Mat_<int>(cC, false), cIdx, 0);
+		rIdx = getCloneI(cR, rIdx, 0);
+		cIdx = getCloneI(cC, cIdx, 0);
 		
 		bool enterStep6 = true;
 		while (!cIdx.empty()){
@@ -186,13 +189,23 @@ template <class T> void Munkres<T>::step4(){
 			rIdx = getCloneL(rIdx, z, 1, true);
 			cIdx = getCloneL(cIdx, z, 1, true);
 			cR = getIndsOfNonZeros1D(coverRow, true);
-			z = getCloneI(dMat, getIndsOfNonZeros1D(coverRow, true), stz) == (getCloneL(minR, coverRow, 1, true, false) + minC(stz));
+			
+			//cv::Mat_<int> vvec(getIndsOfNonZeros1D(coverRow, true), true);
 
-			cv::Mat_<int> cRTemp = getCloneL(cv::Mat_<int>(cR, false), z, 1);
-			std::copy(cRTemp.begin(), cRTemp.end(), back_inserter(rIdx));
+			//cout << dMat << endl << endl;
+			//cout << stz << endl << endl;
+			//cout << cv::Mat_<int>(getIndsOfNonZeros1D(coverRow, true), true) << endl;
+			//cout << dMat << endl << endl;
+			//cout << getCloneI(dMat.clone(), vvec, stz) << endl << endl;
+			//cout << (getCloneL(minR, coverRow, 1, true, false) + minC(stz)) << endl << endl;
+
+			z = getCloneI(dMat, getIndsOfNonZeros1D(coverRow, true), stz) == (getCloneL(minR, coverRow, 1, true, false) + minC(stz));
+			
+			cv::Mat_<int> cRTemp = getCloneL(cR, z, 1);
+			std::copy(cRTemp.begin(), cRTemp.end(), std::back_inserter(rIdx));
 
 			cv::Mat_<int> stzTemp(cv::countNonZero(z), 1, stz);
-			std::copy(stzTemp.begin(), stzTemp.end(), back_inserter(cIdx));
+			std::copy(stzTemp.begin(), stzTemp.end(), std::back_inserter(cIdx));
 		}
 
 		if (enterStep6)
@@ -236,8 +249,8 @@ template <class T> bool Munkres<T>::step5(){
 /*After step 1 through 6 have been executed, the final assignment
 relationship and assignment cost are computed here.*/
 template <class T> void Munkres<T>::findCost(){
-	cv::Mat_<int> rowIdx(getIndsOfNonZeros1D(validRow), true);
-	cv::Mat_<int> colIdx(getIndsOfNonZeros1D(validCol), true);
+	cv::Mat_<int> rowIdx = getIndsOfNonZeros1D(validRow);
+	cv::Mat_<int> colIdx = getIndsOfNonZeros1D(validCol);
 	colIdx = colIdx.t();
 	
 	starZ = starZ(cv::Range(0, nRows), cv::Range::all());
@@ -259,6 +272,14 @@ template <class T> void Munkres<T>::findCost(){
 	assignL(src, pass, 1, d, false, true);
 	assignL(pass, assignment, 1, mask);
 	
+	individualCosts.resize(assignment.total(), T(-1));
+	for (int r = 0; r < individualCosts.size(); ++r){
+		int c = assignment(r);
+		if (c != -1){
+			individualCosts[r] = costMat(r, c);
+		}
+	}
+
 	cv::Mat_<T> finalCostMat = getCloneI(costMat, getIndsOfNonZeros1D(mask), getCloneL(assignment, 1, mask));
 	cost = cv::Scalar_<T>(cv::trace(finalCostMat))[0];
 }
@@ -268,14 +289,14 @@ template <class T> template <class I>
 T Munkres<T>::outerPlus(const cv::Mat_<T> &_mat, cv::Mat_<T> &x, cv::Mat_<T> &y,
 	cv::Mat_<I> &rIdx, cv::Mat_<I> &cIdx)
 {
-	cv::Mat_<T> mat = _mat.clone();
+	cv::Mat_<T> costMat = _mat.clone();
 	T minVal = std::numeric_limits<T>::max();
-	for (int c = 0; c < mat.cols; ++c){
-		cv::Mat_<T> col = mat.col(c);
-		col -= x + y(0, c);
+	for (int c = 0; c < costMat.cols; ++c){
+		cv::Mat_<T> col = costMat.col(c);
+		col -= x + y(c);
 		minVal = std::min(minVal, *std::min_element(col.begin(), col.end()));
 	}
-	getIndsOfNonZeros2D(cv::Mat_<uint8_t>(mat == minVal), rIdx, cIdx);
+	getIndsOfNonZeros2D(cv::Mat_ <uint8_t>(costMat == minVal), rIdx, cIdx);
 	return minVal;
 }
 

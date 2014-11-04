@@ -11,8 +11,8 @@ void testMunkres(Munkres<double> &mun, cv::Mat_<double> &mat, bool hugeMat = fal
 	size_t begin = cv::getTickCount();
 	mun(mat);
 	size_t end = cv::getTickCount();
-	cout << "Output assignment: " << mun.getAssignmentMatrix() << endl;
-	cout << "Output cost of assignment: " << mun.getAssignmentCost() << endl;
+	cout << "Output assignment: " << mun.getAssignment() << endl;
+	cout << "Output cost of assignment: " << mun.getCost() << endl;
 	cout << "Total elapsed time: " << (end - begin) / cv::getTickFrequency() << endl;
 	cout << endl;
 }
@@ -41,7 +41,7 @@ int main(){
 	testMunkres(mun, mat);
 
 	/*Testing a large square assignment, with random data.*/
-	mat.create(800, 800);
+	mat.create(400, 400);
 	rng.fill(mat, cv::RNG::UNIFORM, 0.0, std::nextafter(1.0, 1));
 	testMunkres(mun, mat, true);
 

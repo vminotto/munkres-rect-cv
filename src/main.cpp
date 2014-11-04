@@ -41,14 +41,7 @@ int main(){
 	rng.fill(mat, cv::RNG::UNIFORM, 0.0, std::nextafter(1.0, 1));
 	testMunkres(mun, mat);
 
-	//std::vector<double> vec;
-	//std::ifstream file("C:/Dropbox/Softwares/CPlusPlus/GitHub/munkres-hungarian/munkres/longmat.txt");
-	//std::copy(std::istream_iterator<double>(file), std::istream_iterator<double>(), std::back_inserter(vec));
-	//cv::Mat_<double> longMat(vec, true);
-	//longMat = longMat.reshape(270);
-	//testMunkres(mun, longMat, true);
-
-	/*Testing a large square assignemtn, with random data.*/
+	/*Testing a large square assignment, with random data.*/
 	mat.create(800, 800);
 	rng.fill(mat, cv::RNG::UNIFORM, 0.0, std::nextafter(1.0, 1));
 	testMunkres(mun, mat, true);

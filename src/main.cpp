@@ -13,7 +13,8 @@ void testMunkres(Munkres<double> &mun, cv::Mat_<double> &mat, bool hugeMat = fal
 	size_t end = cv::getTickCount();
 	cout << "Output assignment: " << mun.getAssignmentMatrix() << endl;
 	cout << "Output cost of assignment: " << mun.getAssignmentCost() << endl;
-	cout << "Total elapsed time: " << (end - begin) / cv::getTickFrequency() << endl << endl;
+	cout << "Total elapsed time: " << (end - begin) / cv::getTickFrequency() << endl;
+	cout << endl;
 }
 
 int main(){

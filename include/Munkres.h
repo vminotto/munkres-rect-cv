@@ -29,14 +29,11 @@ public:
 		initialize();
 		step1();
 		step2();
-		
 		bool done = std::count(starZ.begin(), starZ.end(), -1) == 0;
-		int l0 = 0;
 		while (!done){
 			step3();
 			step4();
 			done = step5();
-			l0++;
 		}
 		findCost();
 		return assignment;
@@ -56,9 +53,8 @@ private:
 	/*Auxiliary variables used for running the algorihtm. They are declared
 	here so that data can be easely transfered among all steps (1 trhough 6).*/
 	cv::Mat_<T> costMat, dMat, minR, minC;
-	cv::Mat_<int> validRow, validCol, starZ, primeZ;
-	cv::Mat_<uint8_t> validMat, invalMat, coverRow, coverCol, notCoverRow, notCoverCol;
-	std::vector<int> rIdx, cIdx;
+	cv::Mat_<int> validRow, validCol, starZ, primeZ, rIdx, cIdx;
+	cv::Mat_<uint8_t> validMat, invalMat, coverRow, coverCol;
 	int uZr, uZc, nRows, nCols;
 
 	/*Intermediate functions used to solve the assignment problem. These are
@@ -72,7 +68,7 @@ private:
 	void step6();
 	void findCost();
 
-	T outerPlus(const cv::Mat_<T> &_mat, cv::Mat_<T> &x, cv::Mat_<T> &y, std::vector<int> &rIdx, std::vector<int> &cIdx);
+	T outerPlus(const cv::Mat_<T> &_mat, cv::Mat_<T> &x, cv::Mat_<T> &y, cv::Mat_<int> &rIdx, cv::Mat_<int> &cIdx);
 
 };
 
@@ -140,20 +136,17 @@ template <class T> void Munkres<T>::step3(){
 	coverCol = cv::Mat_<uint8_t>(1, starZ.rows, uint8_t(0));
 	coverRow = cv::Mat_<uint8_t>(starZ.rows, 1, uint8_t(0));
 
-	cv::Mat_<int> mask = getCloneL(starZ, starZ > int(-1), 1);
-	assignI(cv::Mat_<uint8_t>(mask.cols, mask.rows, uint8_t(255)), coverCol, 0, mask);
-
-	notCoverCol = ~coverCol;
-	notCoverRow = ~coverRow;
+	cv::Mat_<int> maskI = getCloneL(starZ, starZ > int(-1), 1);
+	assignI(cv::Mat_<uint8_t>(maskI.cols, maskI.rows, uint8_t(255)), coverCol, 0, maskI);
 
 	primeZ = cv::Mat_<int>(starZ.rows, 1, int(-1));
 
-	cv::Mat_<T> minRR = getCloneL(minR, notCoverRow, 1);
-	cv::Mat_<T> minCC = getCloneL(minC, 1, notCoverCol);
+	cv::Mat_<T> minRR = getCloneL(minR, coverRow, 1, true, false);
+	cv::Mat_<T> minCC = getCloneL(minC, 1, coverCol, false, true);
 
 	cv::Mat_<T> sum = cv::repeat(minRR, 1, minCC.cols) + cv::repeat(minCC, minRR.rows, 1);
-	cv::Mat_<T> dMatSub = getCloneL(dMat, notCoverRow, notCoverCol);
-	getNonZeroInds(sum == dMatSub, rIdx, cIdx);
+	cv::Mat_<T> dMatSub = getCloneL(dMat, coverRow, coverCol, true, true);
+	getIndsOfNonZeros2D(cv::Mat_<uint8_t>(sum == dMatSub), rIdx, cIdx);
 }
 
 /*Find a noncovered zero and prime it. If there is no starred
@@ -169,18 +162,19 @@ template <class T> void Munkres<T>::step4(){
 	while (!done){
 
 		std::vector<int> cC, cR;
-		cR = getNonZeroInds(notCoverRow);
-		cC = getNonZeroInds(notCoverCol);
+		cR = getIndsOfNonZeros1D(coverRow, true);
+		cC = getIndsOfNonZeros1D(coverCol, true);
+
 		rIdx = getCloneI(cv::Mat_<int>(cR, false), rIdx, 0);
 		cIdx = getCloneI(cv::Mat_<int>(cC, false), cIdx, 0);
 		
 		bool enterStep6 = true;
 		while (!cIdx.empty()){
-			uZr = rIdx.front();
-			uZc = cIdx.front();
+			uZr = rIdx(0);
+			uZc = cIdx(0);
 			primeZ(uZr) = uZc;
 			int stz = starZ(uZr);
-			
+	
 			if (stz < 0){
 				enterStep6 = false;
 				done = true;
@@ -189,14 +183,12 @@ template <class T> void Munkres<T>::step4(){
 
 			coverRow(uZr) = 255;
 			coverCol(stz) = 0;
-			notCoverRow(uZr) = 0;
-			notCoverCol(stz) = 255;
 
-			cv::Mat_<uint8_t> z = cv::Mat_<int>(rIdx, false) == uZr;
-			rIdx = getCloneL(cv::Mat_<int>(rIdx, false), ~z, 1);
-			cIdx = getCloneL(cv::Mat_<int>(cIdx, false), ~z, 1);
-			cR = getNonZeroInds(notCoverRow);
-			z = getCloneI(dMat, getNonZeroInds(notCoverRow), stz) == (getCloneL(minR, notCoverRow, 1) + minC(stz));
+			cv::Mat_<uint8_t> z = rIdx == uZr;
+			rIdx = getCloneL(rIdx, z, 1, true);
+			cIdx = getCloneL(cIdx, z, 1, true);
+			cR = getIndsOfNonZeros1D(coverRow, true);
+			z = getCloneI(dMat, getIndsOfNonZeros1D(coverRow, true), stz) == (getCloneL(minR, coverRow, 1, true, false) + minC(stz));
 
 			cv::Mat_<int> cRTemp = getCloneL(cv::Mat_<int>(cR, false), z, 1);
 			std::copy(cRTemp.begin(), cRTemp.end(), back_inserter(rIdx));
@@ -214,9 +206,9 @@ template <class T> void Munkres<T>::step4(){
 row, and subtract it from every element of each uncovered column.
 Return to Step 4 without altering any stars, primes, or covered lines.*/
 template <class T> void Munkres<T>::step6(){
-	cv::Mat_<T> dMatTmp = getCloneL(dMat, notCoverRow, notCoverCol);
-	T minVal = outerPlus(dMatTmp, getCloneL(minR, notCoverRow, 1), getCloneL(minC, 1, notCoverCol), rIdx, cIdx);
-	assignL<T>(getCloneL(minC, 1, notCoverCol) + minVal, minC, 1, notCoverCol);
+	cv::Mat_<T> dMatTmp = getCloneL(dMat, coverRow, coverCol, true, true);
+	T minVal = outerPlus(dMatTmp, getCloneL(minR, coverRow, 1, true), getCloneL(minC, 1, coverCol, false, true), rIdx, cIdx);
+	assignL<T>(getCloneL(minC, 1, coverCol, false, true) + minVal, minC, 1, coverCol, false, true);
 	assignL<T>(getCloneL(minR, coverRow, 1) - minVal, minR, coverRow, 1);
 }
 
@@ -246,31 +238,37 @@ template <class T> bool Munkres<T>::step5(){
 /*After step 1 through 6 have been executed, the final assignment
 relationship and assignment cost are computed here.*/
 template <class T> void Munkres<T>::findCost(){
-	cv::Mat_<int> rowIdx(getNonZeroInds(validRow), true);
-	cv::Mat_<int> colIdx(getNonZeroInds(validCol), true);
+	cv::Mat_<int> rowIdx(getIndsOfNonZeros1D(validRow), true);
+	cv::Mat_<int> colIdx(getIndsOfNonZeros1D(validCol), true);
 	colIdx = colIdx.t();
-
+	
 	starZ = starZ(cv::Range(0, nRows), cv::Range::all());
+
 	cv::Mat_<uint8_t> vIdx = starZ <= nCols-1;
 
 	cv::Mat_<int> rowIdxx = getCloneL(rowIdx, vIdx, 1);
 	cv::Mat_<int> colIdxx = getCloneI(colIdx, 0, getCloneL(starZ, vIdx, 1));
+
 	assignI(colIdxx, assignment, 0, rowIdxx);
-	
+
 	cv::Mat_<uint8_t> mask = assignment > -1;
 	cv::Mat_<int> pass = getCloneL(assignment, 1, mask);
-
-	cv::Mat_<uint8_t> tValidMask = getCloneI(validMat, getNonZeroInds(mask), pass);
 	
-	assignL(cv::Mat_<int>(1, (int)tValidMask.diag().total(), 0), pass, 1, ~(tValidMask.diag()));
-	assignL(pass, assignment, 1, mask);
+	cv::Mat_<uint8_t> tValidMask = getCloneI(validMat, getIndsOfNonZeros1D(mask), pass);
+	cv::Mat_<uint8_t> d = tValidMask.diag();
+	cv::Mat_<int> src = cv::Mat_<int>(1, (int)d.total(), 0);
 
-	cv::Mat_<T> finalCostMat = getCloneI(costMat, getNonZeroInds(mask), getCloneL(assignment, 1, mask));
+	assignL(src, pass, 1, d, false, true);
+	assignL(pass, assignment, 1, mask);
+	
+	cv::Mat_<T> finalCostMat = getCloneI(costMat, getIndsOfNonZeros1D(mask), getCloneL(assignment, 1, mask));
 	cost = cv::Scalar_<T>(cv::trace(finalCostMat))[0];
 }
 
 /*Auxiliary function*/
-template <class T> T Munkres<T>::outerPlus(const cv::Mat_<T> &_mat, cv::Mat_<T> &x, cv::Mat_<T> &y, std::vector<int> &rIdx, std::vector<int> &cIdx){
+template <class T> T Munkres<T>::outerPlus(const cv::Mat_<T> &_mat, cv::Mat_<T> &x, cv::Mat_<T> &y, 
+	cv::Mat_<int> &rIdx, cv::Mat_<int> &cIdx)
+{
 	cv::Mat_<T> mat = _mat.clone();
 	T minVal = std::numeric_limits<T>::max();
 	for (int c = 0; c < mat.cols; ++c){
@@ -278,7 +276,7 @@ template <class T> T Munkres<T>::outerPlus(const cv::Mat_<T> &_mat, cv::Mat_<T> 
 		col -= x + y(0, c);
 		minVal = std::min(minVal, *std::min_element(col.begin(), col.end()));
 	}
-	getNonZeroInds(mat == minVal, rIdx, cIdx);
+	getIndsOfNonZeros2D(cv::Mat_<uint8_t>(mat == minVal), rIdx, cIdx);
 	return minVal;
 }
 

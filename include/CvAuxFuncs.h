@@ -5,9 +5,11 @@
 clone of 'src' is returned. Columns and rows marked with zeros are not copied.
 If the sizes of either vectors exceed the size of src's dimensiosn, an error 
 is thrown. This functions simulates matlab's logic indexing.*/
-template <class T> cv::Mat_<T> getCloneL(const cv::Mat_<T> src,
-	cv::InputArray _rowLogicInds, cv::InputArray _colLogicInds)
+template <class T, class I = unsigned char> cv::Mat_<T> getCloneL(const cv::Mat_<T> &src,
+	cv::InputArray _rowLogicInds, cv::InputArray _colLogicInds, bool negateRowInds = false, bool negateColInds = false)
 {
+
+	static_assert(std::is_integral<I>::value, "Second template parameter on 'getCloneL(...)' must be an integral primitive type.");
 
 	CV_Assert(src.dims <= 2);
 
@@ -16,21 +18,25 @@ template <class T> cv::Mat_<T> getCloneL(const cv::Mat_<T> src,
 
 	size_t nRows = cv::countNonZero(_rowLogicInds);
 	size_t nCols = cv::countNonZero(_colLogicInds);
+	if (negateRowInds) nRows = _rowLogicInds.total() - nRows;
+	if (negateColInds) nCols = _colLogicInds.total() - nCols;
 
-	std::vector<unsigned char> rowLogicInds, colLogicInds;
-	_rowLogicInds.getMat().convertTo(rowLogicInds, cv::DataType<unsigned char>::type);
-	_colLogicInds.getMat().convertTo(colLogicInds, cv::DataType<unsigned char>::type);
-
-	if (rowLogicInds.size() != src.rows || colLogicInds.size() != src.cols){
+	if (nRows == src.rows && nCols == src.cols)
+		return src.clone();
+	if (_rowLogicInds.total() != src.rows || _colLogicInds.total() != src.cols){
 		CV_Error(CV_StsVecLengthErr, std::string("Size of each dimension in the 'src' matrix must match the size of the respective logical indexing vectors."));
 	}
+	
+	cv::Mat_<I> rowLogicInds, colLogicInds;
+	rowLogicInds = _rowLogicInds.getMat();
+	colLogicInds = _colLogicInds.getMat();
 
 	cv::Mat_<T> dst(nRows, nCols);
 
 	for (int rSrc = 0, rDst = 0; rSrc < src.rows; ++rSrc){
-		if (rowLogicInds[rSrc]){
+		if (bool(rowLogicInds(rSrc)) != negateRowInds){
 			for (int cSrc = 0, cDst = 0; cSrc < src.cols; ++cSrc){
-				if (colLogicInds[cSrc]){
+				if (bool(colLogicInds(cSrc)) != negateColInds){
 					dst(rDst, cDst) = src(rSrc, cSrc);
 					++cDst;
 				}
@@ -47,22 +53,26 @@ clone is based on the order of appearence of each index in such arrays.
 If any of the indexes is out of range, an error is thrown. Using this 
 function the resulting matrix may be larger than 'src', which happens
 when the same index is specified multiple times.*/
-template <class T> cv::Mat_<T> getCloneI(const cv::Mat_<T> src,
+template <class T, class I = int> cv::Mat_<T> getCloneI(const cv::Mat_<T> &src,
 	cv::InputArray _rowInds, cv::InputArray _colInds)
 {
+
+	static_assert(std::is_integral<I>::value, "Second template parameter on 'getCloneI(...)' must be an integral primitive type.");
 
 	CV_Assert(src.dims <= 2);
 
 	if (src.empty() || _rowInds.empty() || _colInds.empty())
 		return cv::Mat_<T>();
 
-	std::vector<int> rowInds, colInds;
-	_rowInds.getMat().convertTo(rowInds, cv::DataType<int>::type);
-	_colInds.getMat().convertTo(colInds, cv::DataType<int>::type);
+	size_t nRows = _rowInds.total();
+	size_t nCols = _colInds.total();
 
-	size_t nRows = rowInds.size();
-	size_t nCols = colInds.size();
 
+	cv::Mat_<I> rowInds, colInds;
+	rowInds = _rowInds.getMat();
+	colInds = _colInds.getMat();
+	
+#ifdef _DEBUG
 	auto minMax = std::minmax_element(rowInds.begin(), rowInds.end());
 	if (*minMax.first < 0 || *minMax.second >= src.rows)
 		CV_Error(CV_StsVecLengthErr, std::string("One or more index in '_rowInds' exceed the horizontal dimension of 'src'."));
@@ -70,12 +80,13 @@ template <class T> cv::Mat_<T> getCloneI(const cv::Mat_<T> src,
 	minMax = std::minmax_element(colInds.begin(), colInds.end());
 	if (*minMax.first < 0 || *minMax.second >= src.cols)
 		CV_Error(CV_StsVecLengthErr, std::string("One or more index in '_colInds' exceed the vertical dimension of 'src'."));
+#endif
 
 	cv::Mat_<T> dst(nRows, nCols);
 
 	for (int r = 0; r < nRows; ++r){
 		for (int c = 0; c < nCols; ++c){
-			dst(r, c) = src(rowInds[r], colInds[c]);
+			dst(r, c) = src(rowInds(r), colInds(c));
 		}
 	}
 	return dst;
@@ -119,36 +130,46 @@ disp(A);
 %0     0     0
 %3     4     0
 --------------------------------------------*/
-template <class T> void assignL(const cv::Mat_<T> &src, cv::Mat_<T> &dst,
-	cv::InputArray _rowLogicInds, cv::InputArray _colLogicInds)
+template <class T, class I = unsigned char> void assignL(const cv::Mat_<T> &src, cv::Mat_<T> &dst,
+	cv::InputArray _rowLogicInds, cv::InputArray _colLogicInds, bool negateRowInds = false, bool negateColInds = false)
 {
+
+	static_assert(std::is_integral<I>::value, "Second template parameter on 'assignL(...)' must be an integral primitive type.");
 
 	CV_Assert(src.dims <= 2);
 
-	if (src.empty() || _rowLogicInds.empty() || _colLogicInds.empty())
+	if (src.empty() || _rowLogicInds.empty() || _colLogicInds.empty()){
 		return;
+	}
+	if (_rowLogicInds.total() != dst.rows || _colLogicInds.total() != dst.cols){
+		CV_Error(CV_StsVecLengthErr, std::string("Size of each dimension in the 'dst' matrix must match the number of non-zeros in the respective logical indexing arrays."));
+	}
 
 	size_t nRows = cv::countNonZero(_rowLogicInds);
 	size_t nCols = cv::countNonZero(_colLogicInds);
+	if (negateRowInds) nRows = _rowLogicInds.total() - nRows;
+	if (negateColInds) nCols = _colLogicInds.total() - nCols;
 
-	if (!nCols || !nRows)
+	if (!nCols || !nRows){
 		return;
-
-	std::vector<unsigned char> rowLogicInds, colLogicInds;
-	_rowLogicInds.getMat().convertTo(rowLogicInds, cv::DataType<unsigned char>::type);
-	_colLogicInds.getMat().convertTo(colLogicInds, cv::DataType<unsigned char>::type);
-
-	//if (nRows != src.rows || nCols != src.cols){
-	//	CV_Error(CV_StsVecLengthErr, std::string("Size of each dimension in the 'dst' matrix must match the number of non-zero elements on each logical indexing array."));
-	//}
-	if (rowLogicInds.size() != dst.rows || colLogicInds.size() != dst.cols){
-		CV_Error(CV_StsVecLengthErr, std::string("Size of each dimension in the 'src' matrix must match the size of the respective logical indexing arrays."));
 	}
 
+	if (nCols == dst.cols && nRows == dst.rows){
+		dst = src;
+		return;
+	}
+	//if (nRows != src.rows || nCols != src.cols){
+	//	CV_Error(CV_StsVecLengthErr, std::string("Size of each dimension in the 'src' matrix must match the size of the respective logical indexing arrays."));
+	//}
+	
+	cv::Mat_<I> rowLogicInds, colLogicInds;
+	rowLogicInds = _rowLogicInds.getMat();
+	colLogicInds = _colLogicInds.getMat();	
+
 	for (int rDst = 0, rSrc = 0; rDst < dst.rows; ++rDst){
-		if (rowLogicInds[rDst]){
+		if (bool(rowLogicInds(rDst)) != negateRowInds){
 			for (int cDst = 0, cSrc = 0; cDst < dst.cols; ++cDst){
-				if (colLogicInds[cDst]){
+				if (bool(colLogicInds(cDst)) != negateColInds){
 					dst(rDst, cDst) = src(rSrc, cSrc);
 					++cSrc;
 				}
@@ -192,22 +213,28 @@ disp(A);
 %0     0     0
 %0     2     1
 --------------------------------------------*/
-template <class T> void assignI(const cv::Mat_<T> &src, cv::Mat_<T> &dst,
+template <class T, class I = int> void assignI(const cv::Mat_<T> &src, cv::Mat_<T> &dst,
 	cv::InputArray _rowInds, cv::InputArray _colInds)
 {
 
+	static_assert(std::is_integral<I>::value, "Second template parameter on 'assignI(...)' must be an integral primitive type.");
+	
 	CV_Assert(src.dims <= 2);
 
 	if (src.empty() || _rowInds.empty() || _colInds.empty())
 		return;
 
-	std::vector<int> rowInds, colInds;
-	_rowInds.getMat().convertTo(rowInds, cv::DataType<int>::type);
-	_colInds.getMat().convertTo(colInds, cv::DataType<int>::type);
+	size_t nRows = _rowInds.total();
+	size_t nCols = _colInds.total();
+	if (nRows != src.rows || nCols != src.cols){
+		CV_Error(CV_StsVecLengthErr, std::string("Size of each dimension in the 'src' matrix must match the size of the respective logical indexing arrays."));
+	}
 
-	size_t nRows = rowInds.size();
-	size_t nCols = colInds.size();
+	cv::Mat_<I> rowInds, colInds;
+	rowInds = _rowInds.getMat();
+	colInds = _colInds.getMat();
 
+#ifdef _DEBUG
 	auto minMax = std::minmax_element(rowInds.begin(), rowInds.end());
 	if (*minMax.first < 0|| *minMax.second >= dst.rows)
 		CV_Error(CV_StsVecLengthErr, std::string("One or more index in '_rowInds' exceed the horizontal dimension of 'src'."));
@@ -215,59 +242,54 @@ template <class T> void assignI(const cv::Mat_<T> &src, cv::Mat_<T> &dst,
 	minMax = std::minmax_element(colInds.begin(), colInds.end());
 	if (*minMax.first < 0 || *minMax.second >= dst.cols)
 		CV_Error(CV_StsVecLengthErr, std::string("One or more index in '_colInds' exceed the vertical dimension of 'src'."));
-
-	if (nRows != src.rows || nCols != src.cols){
-		CV_Error(CV_StsVecLengthErr, std::string("Size of each dimension in the 'src' matrix must match the size of the respective logical indexing arrays."));
-	}
+#endif
 
 	for (int r = 0; r < nRows; ++r){
 		for (int c = 0; c < nCols; ++c){
-			dst(rowInds[r], colInds[c]) = src(r, c);
+			dst(rowInds(r), colInds(c)) = src(r, c);
 		}
 	}
-	int aaa = cv::countNonZero(dst);
+
 }
 
-std::vector<int> getNonZeroInds(cv::InputArray in){
+template <class T, class I = int> std::vector<I> getIndsOfNonZeros1D(cv::Mat_<T> &in, bool negateInput = false){
 	
-	if (in.empty())
-		return std::vector<int>();
+	static_assert(std::is_integral<I>::value, "Second template parameter on 'getIndsOfNonZeros1D(...)' must be an integral primitive type.");
 
-	if (in.size().width > 1 && in.size().height > 1){
+
+	if (in.empty())
+		return std::vector<I>();
+
+	if (in.rows > 1 && in.cols > 1){
 		CV_Error(CV_StsVecLengthErr, std::string("Input array must be one-dimensional."));
 	}
+	
+	std::vector<I> inds;
 
-	std::vector<int> logicalInds;
-	in.getMat().copyTo(logicalInds);
-
-	std::vector<int> inds;
-	for (int i = 0; i < logicalInds.size(); ++i){
-		if (logicalInds[i])
+	for (int i = 0; i < in.total(); ++i){
+		if (bool(in(i)) != negateInput)
 			inds.push_back(i);
 	}
 	return inds;
 }
 
+template <class T, class I = int> void getIndsOfNonZeros2D(cv::Mat_<T> in, 
+	cv::Mat_<I> &rowInds, cv::Mat_<I> &colInds){
 
-//optmize this to avoid duplicating the input. do the same for other functions.
-void getNonZeroInds(cv::InputArray in, std::vector<int> &rowInds, std::vector<int> &colInds){
+	static_assert(std::is_integral<I>::value, "Second template parameter on 'getIndsOfNonZeros2D(...)' must be an integral primitive type.");
 
 	if (in.empty())
 		return;
-
 
 	if (in.size().width < 1 || in.size().height < 1){
 		CV_Error(CV_StsVecLengthErr, std::string("Input array must be two-dimensional."));
 	}
 
-	cv::Mat_<int> mat;
-	in.getMat().copyTo(mat);
-
-	rowInds.clear();
-	colInds.clear();
-	for (int r = 0; r < mat.rows; ++r){
-		for (int c = 0; c < mat.cols; ++c){
-			if (mat(r, c)){
+	rowInds = cv::Mat_<I>();
+	colInds = cv::Mat_<I>();
+	for (int r = 0; r < in.rows; ++r){
+		for (int c = 0; c < in.cols; ++c){
+			if (in(r, c)){
 				rowInds.push_back(r);
 				colInds.push_back(c);
 			}

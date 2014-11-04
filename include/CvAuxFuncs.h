@@ -1,3 +1,6 @@
+#ifndef CV_AUX_FUNCS_H
+#define CV_AUX_FUNCS_H
+
 #include <opencv.hpp>
 
 /*Returns a clone of src based on the indexes passed in through the arrays
@@ -336,3 +339,5 @@ template <class T> cv::Mat_<T> &push_cols(cv::Mat_<T> &mat, cv::Mat_<T> &cols){
 	}
 	return mat;
 }
+
+#endif

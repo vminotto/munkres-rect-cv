@@ -1,7 +1,6 @@
 #ifndef MUNKRES_H
 #define MUNKRES_H
 
-#include <opencv.hpp>
 #include <numeric>
 #include <cstdint>
 #include "CvAuxFuncs.h"

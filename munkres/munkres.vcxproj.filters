@@ -11,10 +11,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\include\Munkres.h">
+    <ClInclude Include="..\include\CvAuxFuncs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\CvAuxFuncs.h">
+    <ClInclude Include="..\include\Munkres.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

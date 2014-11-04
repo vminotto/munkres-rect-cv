@@ -2,7 +2,6 @@
 #define MUNKRES_H
 
 #include <opencv.hpp>
-#include <algorithm>
 #include <numeric>
 #include <cstdint>
 #include "CvAuxFuncs.h"
@@ -68,7 +67,7 @@ private:
 	void step6();
 	void findCost();
 
-	T outerPlus(const cv::Mat_<T> &_mat, cv::Mat_<T> &x, cv::Mat_<T> &y, cv::Mat_<int> &rIdx, cv::Mat_<int> &cIdx);
+	template <class I> T outerPlus(const cv::Mat_<T> &_mat, cv::Mat_<T> &x, cv::Mat_<T> &y, cv::Mat_<I> &rIdx, cv::Mat_<I> &cIdx);
 
 };
 
@@ -266,8 +265,9 @@ template <class T> void Munkres<T>::findCost(){
 }
 
 /*Auxiliary function*/
-template <class T> T Munkres<T>::outerPlus(const cv::Mat_<T> &_mat, cv::Mat_<T> &x, cv::Mat_<T> &y, 
-	cv::Mat_<int> &rIdx, cv::Mat_<int> &cIdx)
+template <class T> template <class I> 
+T Munkres<T>::outerPlus(const cv::Mat_<T> &_mat, cv::Mat_<T> &x, cv::Mat_<T> &y,
+	cv::Mat_<I> &rIdx, cv::Mat_<I> &cIdx)
 {
 	cv::Mat_<T> mat = _mat.clone();
 	T minVal = std::numeric_limits<T>::max();

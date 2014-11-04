@@ -2,29 +2,20 @@
 #include <cmath>
 #include <random>
 #include <fstream>
-#include "TempTests.h"
-#include <utility>
-#include <type_traits>
 
 using namespace std;
 
 void testMunkres(Munkres<double> &mun, cv::Mat_<double> &mat, bool hugeMat = false){
-	
 	if (hugeMat)
 		cout << "Input Cost Matrix: " << endl << "A " << mat.rows << " x " << mat.cols << " matrix" << endl;
 	else
 		cout << "Input Cost Matrix: " << endl << mat << endl << endl;
-	cout << "Output assignment: " << mun(mat) << endl;
+	size_t begin = cv::getTickCount();
+	mun(mat);
+	size_t end = cv::getTickCount();
+	cout << "Output assignment: " << mun.getAssignmentMatrix() << endl;
 	cout << "Output cost of assignment: " << mun.getAssignmentCost() << endl;
-}
-
-void testVec(std::vector<int> vec){
-	cout << vec.size() << endl;
-}
-
-std::vector<int> getVec(){
-	//std::vector<int> vec(100, 24);
-	return std::vector<int>(100, 24);;
+	cout << "Total elapsed time: " << (end - begin) / cv::getTickFrequency() << endl << endl;
 }
 
 int main(){
@@ -50,17 +41,19 @@ int main(){
 	rng.fill(mat, cv::RNG::UNIFORM, 0.0, std::nextafter(1.0, 1));
 	testMunkres(mun, mat);
 
-	std::vector<double> vec;
-	std::ifstream file("C:/Dropbox/Softwares/CPlusPlus/GitHub/munkres-hungarian/munkres/longmat.txt");
-	std::copy(std::istream_iterator<double>(file), std::istream_iterator<double>(), std::back_inserter(vec));
-	cv::Mat_<double> longMat(vec, true);
-	longMat = longMat.reshape(270);
+	//std::vector<double> vec;
+	//std::ifstream file("C:/Dropbox/Softwares/CPlusPlus/GitHub/munkres-hungarian/munkres/longmat.txt");
+	//std::copy(std::istream_iterator<double>(file), std::istream_iterator<double>(), std::back_inserter(vec));
+	//cv::Mat_<double> longMat(vec, true);
+	//longMat = longMat.reshape(270);
+	//testMunkres(mun, longMat, true);
 
 	/*Testing a large square assignemtn, with random data.*/
-	//mat.create(270, 270);
-	//rng.fill(mat, cv::RNG::UNIFORM, 0.0, std::nextafter(1.0, 1));
-	testMunkres(mun, longMat, true);
+	mat.create(800, 800);
+	rng.fill(mat, cv::RNG::UNIFORM, 0.0, std::nextafter(1.0, 1));
+	testMunkres(mun, mat, true);
 
+	cout << "\a\a\a";
 	std::cin.get();
 	return 0;
 

@@ -4,15 +4,26 @@
 using namespace std;
 
 void testMunkres(Munkres<double> &mun, cv::Mat_<double> &mat, bool hugeMat = false){
+	
+	/*Runs the munkres algorithm and measure the elapsed processing time.*/
+	size_t begin = cv::getTickCount();
+	mun(mat);
+	size_t end = cv::getTickCount();
+
 	if (hugeMat)
 		cout << "Input Cost Matrix: " << endl << "A " << mat.rows << " x " << mat.cols << " matrix" << endl;
 	else
 		cout << "Input Cost Matrix: " << endl << mat << endl << endl;
-	size_t begin = cv::getTickCount();
-	mun(mat);
-	size_t end = cv::getTickCount();
+
+	cv::Mat_<int> uc(mun.getUnassignedRows(), false);
+	cv::Mat_<int> ur(mun.getUnassignedCols(), false);
+	cv::Mat_<double> costs(mun.getIndividualCosts(), false);
+
 	cout << "Output assignment: " << mun.getAssignment() << endl;
 	cout << "Output cost of assignment: " << mun.getCost() << endl;
+	cout << "Output individual costs: " << (costs.empty() ? costs : costs.t()) << endl;
+	cout << "Unassigned rows: " << (uc.empty() ? uc : uc.t()) << endl;
+	cout << "Unassigned cols: " << (ur.empty() ? ur : ur.t()) << endl;
 	cout << "Total elapsed time: " << (end - begin) / cv::getTickFrequency() << endl;
 	cout << endl;
 }

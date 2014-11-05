@@ -2,6 +2,7 @@
 #define MUNKRES_H
 
 #include <numeric>
+#include <algorithm>
 #include <cstdint>
 #include "CvAuxFuncs.h"
 
@@ -24,7 +25,7 @@ public:
 	in cases where M < N, some 'x' will remain unassigned.*/
 	cv::Mat_<int> operator()(cv::Mat_<T> costMat){
 		this->costMat = costMat;
-		initialize();
+		prepare();
 		step1();
 		step2();
 		bool done = std::count(starZ.begin(), starZ.end(), -1) == 0;
@@ -33,23 +34,32 @@ public:
 			step4();
 			done = step5();
 		}
-		findCost();
+		finish();
 		return assignment;
 	}
 
-	/*Gets the resulting assignment matrix of the last call to the algorithm.*/
 	cv::Mat_<int> getAssignment(){ return assignment; }
-	/*Gest the total assignment cost of the last found solution.*/
 	T getCost(){ return cost; }
-	/*Gets the individual cost of each index in the 'assignment' vector.*/
 	std::vector<T> &getIndividualCosts(){ return individualCosts; }
+	std::vector<int> &getUnassignedRows(){ return unassignedRows; }
+	std::vector<int> &getUnassignedCols(){ return unassignedCols; }
+
 
 private:
 
-	/*Output results of the algorithm*/
+	/*Row vector containing the resulting assignment, that is, the integer of
+	value 'assignment(r)' indicates which column was assignment to row 'r'.*/
 	cv::Mat_<int> assignment;
+	/*This vector holds the individual assignment cost of each correspondence 
+	in the 'assignment' vector.*/
 	std::vector<T> individualCosts;
+	/*Total cost of the resulting assignment after a call to 'operator()'.*/
 	T cost = -1;
+	/*Remaining rows ans cols that were not included in the 'assignment' matrix. The
+	rows vector will only have elements if 'costMat.rows > costMat.cols', and the cols
+	one if costMat.cols > costMat.rows*/
+	std::vector<int> unassignedRows, unassignedCols;
+
 
 	/*Auxiliary variables used for running the algorihtm. They are declared
 	here so that data can be easely transfered among all steps (1 trhough 6).*/
@@ -59,15 +69,15 @@ private:
 	int uZr, uZc, nRows, nCols;
 
 	/*Intermediate functions used to solve the assignment problem. These are
-	called internally by the algorith, and should not be altered.*/
-	void initialize();
+	called internally by the algorithm, and should not be altered.*/
+	void prepare();
 	void step1();
 	void step2();
 	void step3();
 	void step4();
 	bool step5();
 	void step6();
-	void findCost();
+	void finish();
 
 	template <class I> T outerPlus(const cv::Mat_<T> &_mat, cv::Mat_<T> &x, cv::Mat_<T> &y, cv::Mat_<I> &rIdx, cv::Mat_<I> &cIdx);
 
@@ -75,7 +85,7 @@ private:
 
 /*Initialiazes all some of the auxiliary data strucutres 
 that will be used during the algorithm's execution.*/
-template <class T> void Munkres<T>::initialize(){
+template <class T> void Munkres<T>::prepare(){
 	
 	assignment = cv::Mat_<int>(1, costMat.rows, -1);
 	cost = 0;
@@ -104,6 +114,10 @@ template <class T> void Munkres<T>::initialize(){
 			
 	getCloneL(costMat, validRow, validCol).copyTo(dMat(cv::Range(0, nRows), cv::Range(0, nCols)));
 
+	unassignedRows.clear();
+	individualCosts.resize(costMat.rows, T(-1));
+	unassignedCols  .resize(costMat.cols, T(-1));
+	std::iota(unassignedCols.begin(), unassignedCols.end(), 0);
 }
 
 /*Subtract the row minimum from each row.*/
@@ -189,16 +203,6 @@ template <class T> void Munkres<T>::step4(){
 			rIdx = getCloneL(rIdx, z, 1, true);
 			cIdx = getCloneL(cIdx, z, 1, true);
 			cR = getIndsOfNonZeros1D(coverRow, true);
-			
-			//cv::Mat_<int> vvec(getIndsOfNonZeros1D(coverRow, true), true);
-
-			//cout << dMat << endl << endl;
-			//cout << stz << endl << endl;
-			//cout << cv::Mat_<int>(getIndsOfNonZeros1D(coverRow, true), true) << endl;
-			//cout << dMat << endl << endl;
-			//cout << getCloneI(dMat.clone(), vvec, stz) << endl << endl;
-			//cout << (getCloneL(minR, coverRow, 1, true, false) + minC(stz)) << endl << endl;
-
 			z = getCloneI(dMat, getIndsOfNonZeros1D(coverRow, true), stz) == (getCloneL(minR, coverRow, 1, true, false) + minC(stz));
 			
 			cv::Mat_<int> cRTemp = getCloneL(cR, z, 1);
@@ -248,14 +252,14 @@ template <class T> bool Munkres<T>::step5(){
 
 /*After step 1 through 6 have been executed, the final assignment
 relationship and assignment cost are computed here.*/
-template <class T> void Munkres<T>::findCost(){
+template <class T> void Munkres<T>::finish(){
 	cv::Mat_<int> rowIdx = getIndsOfNonZeros1D(validRow);
 	cv::Mat_<int> colIdx = getIndsOfNonZeros1D(validCol);
 	colIdx = colIdx.t();
-	
+
 	starZ = starZ(cv::Range(0, nRows), cv::Range::all());
 
-	cv::Mat_<uint8_t> vIdx = starZ <= nCols-1;
+	cv::Mat_<uint8_t> vIdx = starZ <= nCols - 1;
 
 	cv::Mat_<int> rowIdxx = getCloneL(rowIdx, vIdx, 1);
 	cv::Mat_<int> colIdxx = getCloneI(colIdx, 0, getCloneL(starZ, vIdx, 1));
@@ -264,21 +268,25 @@ template <class T> void Munkres<T>::findCost(){
 
 	cv::Mat_<uint8_t> mask = assignment > -1;
 	cv::Mat_<int> pass = getCloneL(assignment, 1, mask);
-	
+
 	cv::Mat_<uint8_t> tValidMask = getCloneI(validMat, getIndsOfNonZeros1D(mask), pass);
 	cv::Mat_<uint8_t> d = tValidMask.diag();
 	cv::Mat_<int> src = cv::Mat_<int>(1, (int)d.total(), 0);
 
 	assignL(src, pass, 1, d, false, true);
 	assignL(pass, assignment, 1, mask);
-	
-	individualCosts.resize(assignment.total(), T(-1));
+
+
 	for (int r = 0; r < individualCosts.size(); ++r){
 		int c = assignment(r);
-		if (c != -1){
+		if (c != -1)
 			individualCosts[r] = costMat(r, c);
-		}
+		else
+			unassignedRows.push_back(r);
 	}
+	unassignedCols.erase(std::remove_if(unassignedCols.begin(), unassignedCols.end(), [&](int col){
+		return std::find(assignment.begin(), assignment.end(), col) != assignment.end();
+	}), unassignedCols.end());
 
 	cv::Mat_<T> finalCostMat = getCloneI(costMat, getIndsOfNonZeros1D(mask), getCloneL(assignment, 1, mask));
 	cost = cv::Scalar_<T>(cv::trace(finalCostMat))[0];

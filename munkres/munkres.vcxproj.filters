@@ -17,5 +17,8 @@
     <ClInclude Include="..\include\Munkres.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\IterativeMinimizer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

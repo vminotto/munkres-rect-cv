@@ -64,18 +64,8 @@ template <class T, class I = int> cv::Mat_<T> getCloneI(const cv::Mat_<T> &src,
 
 	CV_Assert(src.dims <= 2);
 
-	if (src.empty()){
-		cout << " src empty" << endl;
+	if (src.empty() || _colInds.empty() || _rowInds.empty())
 		return cv::Mat_<T>();
-	}
-	if (_colInds.empty()){
-		cout << " _colInds empty" << endl;
-		return cv::Mat_<T>();
-	}
-	if (_rowInds.empty()){
-		cout << " _rowInds empty" << endl;
-		return cv::Mat_<T>();
-	}	
 
 	size_t nRows = _rowInds.total();
 	size_t nCols = _colInds.total();

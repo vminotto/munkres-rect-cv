@@ -1,9 +1,10 @@
 #include "Munkres.h"
+#include "IterativeMinimizer.h"
 #include <random>
 
 using namespace std;
 
-void testMunkres(Munkres<double> &mun, cv::Mat_<double> &mat, bool hugeMat = false){
+void testMunkres(IterativeMinimizer<double> &mun, cv::Mat_<double> &mat, bool hugeMat = false){
 	
 	/*Runs the munkres algorithm and measure the elapsed processing time.*/
 	size_t begin = cv::getTickCount();
@@ -33,7 +34,7 @@ int main(){
 	double inf = std::numeric_limits<double>::infinity();
 	
 	/*Works for either float or double data.*/
-	Munkres<double> mun;
+	IterativeMinimizer<double> mun;
 
 	/*Testing with a rectangular and incomplete assignment, and inf costs.*/
 	cv::Mat_<double> mat(5, 4);	
@@ -55,7 +56,8 @@ int main(){
 	mat.create(400, 400);
 	rng.fill(mat, cv::RNG::UNIFORM, 0.0, std::nextafter(1.0, 1));
 	testMunkres(mun, mat, true);
-
+	
+	/*Beeps after it is finished.*/
 	cout << "\a\a\a";
 	std::cin.get();
 	return 0;

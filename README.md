@@ -13,3 +13,5 @@ http://www.mathworks.com/matlabcentral/fileexchange/20652-hungarian-algorithm-fo
 
 As is, the code may still receive some optimizations, which might be necesasary if very large assignment problems are being
 solved. For small problems, about 15x15, the runtime is lower than 0.1ms.
+
+At your own risk, feel free to use this code to whatever purposes you wish.
